@@ -348,14 +348,14 @@ If our memory format becomes "the standard" for AI agents, that's real power.
 
 ## Immediate Action Items
 
-### This Week
+### This Week (DONE)
 
-1. [ ] Build one-liner installer (`curl | bash`)
-2. [ ] Build `engram` CLI wrapper
-3. [ ] Build `engram setup` (auto MCP config)
-4. [ ] Integrate git log parsing
-5. [ ] Build `query_recent` with git context
-6. [ ] Build `whats_changed` tool
+1. [x] Build one-liner installer (`curl | bash`)
+2. [x] Build `engram` CLI wrapper
+3. [x] Build `engram setup` (auto MCP config)
+4. [x] Integrate git log parsing
+5. [x] Build `query_recent` with git context
+6. [x] Build `whats_changed` tool
 
 ### Next Week
 
@@ -370,8 +370,8 @@ If our memory format becomes "the standard" for AI agents, that's real power.
 ## Success Metrics
 
 ### Week 2
-- [ ] Setup takes < 90 seconds
-- [ ] Temporal Memory works with git
+- [x] Setup takes < 90 seconds
+- [x] Temporal Memory works with git
 - [ ] Demo GIF recorded
 
 ### Month 1
