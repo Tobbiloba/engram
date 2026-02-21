@@ -9,7 +9,9 @@ a portable vector database that can be plugged into an AI Agent via MCP.
 
 Supported formats:
     - PDF (text-based and scanned/image PDFs with OCR)
-    - Text files (.txt, .md)
+    - Text files (.txt, .md, .rst)
+    - Code files (.py, .js, .ts, .go, .rs, .java, etc.)
+    - Config files (.json, .yaml, .toml, etc.)
     - Images (.png, .jpg, .jpeg) - extracts text via OCR
 
 Usage:
@@ -77,10 +79,17 @@ if not input_path.exists():
     sys.exit(1)
 
 # Supported file extensions
-TEXT_EXTENSIONS = [".txt", ".md"]
+TEXT_EXTENSIONS = [".txt", ".md", ".rst"]
+CODE_EXTENSIONS = [
+    ".py", ".js", ".ts", ".jsx", ".tsx",
+    ".java", ".go", ".rs", ".c", ".cpp", ".h",
+    ".rb", ".php", ".swift", ".kt", ".scala",
+    ".html", ".css", ".scss", ".json", ".yaml", ".yml",
+    ".toml", ".xml", ".sql", ".sh", ".bash"
+]
 PDF_EXTENSIONS = [".pdf"]
 IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff"]
-ALL_EXTENSIONS = TEXT_EXTENSIONS + PDF_EXTENSIONS + IMAGE_EXTENSIONS
+ALL_EXTENSIONS = TEXT_EXTENSIONS + CODE_EXTENSIONS + PDF_EXTENSIONS + IMAGE_EXTENSIONS
 
 # ============================================================
 # STEP 2: OCR Helper Functions
@@ -278,6 +287,28 @@ for i, file_path in enumerate(files_to_process, 1):
             for doc in docs:
                 doc.metadata["source_file"] = str(file_path)
                 doc.metadata["source_type"] = "text"
+                doc.metadata["ocr_applied"] = False
+
+            all_documents.extend(docs)
+            char_count = sum(len(d.page_content) for d in docs)
+            print(f"   [{i}/{len(files_to_process)}] {relative_path} ({char_count} chars)")
+
+        # --------------------------------------------------------
+        # Handle code files (.py, .js, .ts, etc.)
+        # --------------------------------------------------------
+        elif file_ext in CODE_EXTENSIONS:
+            try:
+                loader = TextLoader(str(file_path), encoding="utf-8")
+                docs = loader.load()
+            except Exception:
+                # Fallback to latin-1 for binary-ish files
+                loader = TextLoader(str(file_path), encoding="latin-1")
+                docs = loader.load()
+
+            for doc in docs:
+                doc.metadata["source_file"] = str(file_path)
+                doc.metadata["source_type"] = "code"
+                doc.metadata["file_extension"] = file_ext
                 doc.metadata["ocr_applied"] = False
 
             all_documents.extend(docs)
