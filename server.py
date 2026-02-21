@@ -28,6 +28,25 @@ def log(message: str):
 
 
 # ============================================================
+# GPU Detection
+# ============================================================
+
+def get_best_device() -> str:
+    """Auto-detect the best available device for embeddings."""
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+        elif torch.backends.mps.is_available():
+            return "mps"
+    except ImportError:
+        pass
+    return "cpu"
+
+DEVICE = get_best_device()
+
+
+# ============================================================
 # STEP 1: Parse command-line arguments or environment variable
 # ============================================================
 
@@ -75,14 +94,14 @@ log(f"Loading Memory Cartridge: {engram_path.name}")
 # STEP 2: Load the embedding model (same as used in ingest.py)
 # ============================================================
 
-log("\nInitializing embedding model...")
+log(f"\nInitializing embedding model (device: {DEVICE})...")
 
 from langchain_huggingface import HuggingFaceEmbeddings
 
 # IMPORTANT: Must use the SAME model that was used to create the embeddings!
 embeddings = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2",
-    model_kwargs={"device": "cpu"},
+    model_kwargs={"device": DEVICE},
     encode_kwargs={"normalize_embeddings": True}
 )
 
@@ -108,7 +127,30 @@ log("   Vector database loaded")
 log(f"   Memory cartridge '{engram_path.name}' is ready!")
 
 # ============================================================
-# STEP 4: Create the MCP Server
+# STEP 4: Initialize Temporal Memory
+# ============================================================
+
+log("\nInitializing Temporal Memory...")
+
+try:
+    from engram.temporal import TemporalMemory, format_temporal_results
+    from engram.git_utils import is_git_repo
+
+    temporal_memory = TemporalMemory(engram_path)
+
+    if temporal_memory.repo_path and is_git_repo(temporal_memory.repo_path):
+        log(f"   Git repository detected: {temporal_memory.repo_path}")
+        TEMPORAL_ENABLED = True
+    else:
+        log("   No git repository detected - temporal features limited")
+        TEMPORAL_ENABLED = True  # Still enable, just without git
+except ImportError as e:
+    log(f"   Temporal Memory not available: {e}")
+    temporal_memory = None
+    TEMPORAL_ENABLED = False
+
+# ============================================================
+# STEP 5: Create the MCP Server
 # ============================================================
 
 log("\nStarting MCP Server...")
@@ -163,13 +205,111 @@ def query_memory(query: str) -> str:
     return "\n\n---\n\n".join(output_parts)
 
 
+@mcp.tool()
+def query_recent(query: str, days: int = 7) -> str:
+    """
+    Search with time awareness - finds recently changed files related to your query.
+
+    This is a SMART search that combines semantic search with git history.
+    It prioritizes files that were recently modified and shows commit context.
+
+    Args:
+        query: Your question or search topic (e.g., "authentication changes")
+        days: Number of days to look back for "recent" (default: 7)
+
+    Returns:
+        Relevant results with temporal context (recent commits, changes).
+    """
+    log(f"\nTemporal query received: '{query}' (last {days} days)")
+
+    if not TEMPORAL_ENABLED or temporal_memory is None:
+        # Fallback to regular search
+        return query_memory(query)
+
+    try:
+        results = temporal_memory.query_recent(
+            query=query,
+            vector_store=vector_store,
+            days=days,
+            k=5
+        )
+
+        log(f"   Found {len(results)} results ({sum(1 for r in results if r.is_recently_changed)} recently changed)")
+
+        return format_temporal_results(results)
+
+    except Exception as e:
+        log(f"   Temporal search error: {e}")
+        # Fallback to regular search
+        return query_memory(query)
+
+
+@mcp.tool()
+def whats_changed(days: int = 7) -> str:
+    """
+    Get a summary of what changed in the codebase recently.
+
+    Shows recent commits, which files were modified, and by whom.
+    Great for catching up on what happened while you were away.
+
+    Args:
+        days: Number of days to look back (default: 7)
+
+    Returns:
+        Summary of recent repository activity.
+    """
+    log(f"\nwhats_changed called (last {days} days)")
+
+    if not TEMPORAL_ENABLED or temporal_memory is None:
+        return "Temporal Memory not available. Cannot track changes."
+
+    try:
+        summary = temporal_memory.whats_changed(days=days)
+        return summary
+
+    except Exception as e:
+        log(f"   Error: {e}")
+        return f"Error getting changes: {e}"
+
+
+@mcp.tool()
+def explain_file(file_path: str) -> str:
+    """
+    Explain the recent history of a specific file.
+
+    Shows who changed it, when, and why (commit messages).
+
+    Args:
+        file_path: Path to the file you want to know about
+
+    Returns:
+        File history with commit information.
+    """
+    log(f"\nexplain_file called: {file_path}")
+
+    if not TEMPORAL_ENABLED or temporal_memory is None:
+        return "Temporal Memory not available."
+
+    try:
+        explanation = temporal_memory.explain_file(file_path)
+        return explanation
+
+    except Exception as e:
+        log(f"   Error: {e}")
+        return f"Error explaining file: {e}"
+
+
 # ============================================================
-# STEP 5: Run the server
+# STEP 6: Run the server
 # ============================================================
 
 log("=" * 50)
 log("MCP Server is running!")
-log(f"   Tool available: 'query_memory'")
+log("   Tools available:")
+log("     • query_memory     - Semantic search")
+log("     • query_recent     - Time-aware search (NEW)")
+log("     • whats_changed    - Recent activity summary (NEW)")
+log("     • explain_file     - File history (NEW)")
 log("\nTo connect this to Claude Desktop, add to your config:")
 log(f"""
 {{
