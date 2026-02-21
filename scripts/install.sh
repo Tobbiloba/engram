@@ -88,7 +88,7 @@ main() {
         if [ -d "$INSTALL_DIR/.git" ]; then
             cd "$INSTALL_DIR" && git pull --quiet
         else
-            git clone --quiet https://github.com/YOUR_USERNAME/engram.git "$INSTALL_DIR" 2>/dev/null || {
+            git clone --quiet https://github.com/Tobbiloba/engram.git "$INSTALL_DIR" 2>/dev/null || {
                 # If repo doesn't exist yet, create basic structure
                 print_info "Creating local installation..."
             }
@@ -175,7 +175,7 @@ EOF
     echo ""
     echo "    4. Start asking Claude/Cursor about your code!"
     echo ""
-    echo -e "  ${CYAN}Docs: https://github.com/YOUR_USERNAME/engram${NC}"
+    echo -e "  ${CYAN}Docs: https://github.com/Tobbiloba/engram${NC}"
     echo ""
 }
 

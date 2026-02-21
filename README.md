@@ -55,7 +55,7 @@ engram setup
 
 ```bash
 # Clone and setup
-git clone https://github.com/YOUR_USERNAME/engram.git
+git clone https://github.com/Tobbiloba/engram.git
 cd engram
 python3 -m venv venv
 source venv/bin/activate

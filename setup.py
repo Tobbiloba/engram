@@ -10,7 +10,7 @@ setup(
     description="Local, persistent memory for AI development workflows",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/anthropics/engram",  # Update with your repo
+    url="https://github.com/Tobbiloba/engram",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -61,7 +61,7 @@ setup(
     },
     keywords="ai memory rag vector-database mcp claude cursor codebase",
     project_urls={
-        "Bug Reports": "https://github.com/anthropics/engram/issues",
-        "Source": "https://github.com/anthropics/engram",
+        "Bug Reports": "https://github.com/Tobbiloba/engram/issues",
+        "Source": "https://github.com/Tobbiloba/engram",
     },
 )
