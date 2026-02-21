@@ -11,23 +11,23 @@
 - [x] Add .gitignore
 - [x] Add LICENSE (MIT)
 - [x] Create proper package structure
-- [ ] Create `setup.py` for pip install
-- [ ] Create `scripts/install.sh` (one-liner installer)
+- [x] Create `setup.py` for pip install
+- [x] Create `scripts/install.sh` (one-liner installer)
 - [ ] Test installer on clean system
 
 ### Day 3-4: CLI Wrapper
-- [ ] Create `engram/cli.py`
-- [ ] `engram init` - Index current/specified folder
-- [ ] `engram query "..."` - Search from terminal
-- [ ] `engram watch` - Start Ghost
-- [ ] `engram status` - Show index stats
-- [ ] `engram setup` - Auto-configure MCP
+- [x] Create `engram/cli.py`
+- [x] `engram init` - Index current/specified folder
+- [x] `engram query "..."` - Search from terminal
+- [x] `engram watch` - Start Ghost
+- [x] `engram status` - Show index stats
+- [x] `engram setup` - Auto-configure MCP
 
 ### Day 5-7: Auto MCP Setup
-- [ ] Detect Cursor installation
-- [ ] Detect Claude Desktop installation
-- [ ] Auto-generate MCP config
-- [ ] Show clear success message
+- [x] Detect Cursor installation
+- [x] Detect Claude Desktop installation
+- [x] Auto-generate MCP config
+- [x] Show clear success message
 - [ ] Test on fresh Cursor install
 - [ ] Test on fresh Claude Desktop install
 
@@ -36,24 +36,24 @@
 ## Week 2: Smart Temporal Memory (Days 8-14)
 
 ### Day 8-9: Git Integration
-- [ ] Create `engram/git_utils.py`
-- [ ] Parse `git log` for recent commits
-- [ ] Extract commit messages
-- [ ] Get file diffs per commit
-- [ ] Link files to commits
+- [x] Create `engram/git_utils.py`
+- [x] Parse `git log` for recent commits
+- [x] Extract commit messages
+- [x] Get file diffs per commit
+- [x] Link files to commits
 
 ### Day 10-11: query_recent Tool
-- [ ] Create `engram/temporal.py`
-- [ ] Combine semantic search + time filtering
-- [ ] Include git commit context in results
-- [ ] Show related files
-- [ ] Add to MCP server
+- [x] Create `engram/temporal.py`
+- [x] Combine semantic search + time filtering
+- [x] Include git commit context in results
+- [x] Show related files
+- [x] Add to MCP server
 
 ### Day 12-13: whats_changed Tool
-- [ ] Summary of recent activity
-- [ ] Group by feature/area
-- [ ] Human-readable output
-- [ ] Add to MCP server
+- [x] Summary of recent activity
+- [x] Group by feature/area
+- [x] Human-readable output
+- [x] Add to MCP server
 
 ### Day 14: Polish + Demo
 - [ ] Record 60-second setup GIF
@@ -90,20 +90,42 @@
 
 | Day | Date | Focus | Status |
 |-----|------|-------|--------|
-| 1 | | Project setup | 🟡 In Progress |
-| 2 | | Installer | ⬜ Not Started |
-| 3 | | CLI init/query | ⬜ Not Started |
-| 4 | | CLI watch/status/setup | ⬜ Not Started |
-| 5 | | MCP auto-config | ⬜ Not Started |
-| 6 | | MCP testing | ⬜ Not Started |
-| 7 | | Buffer/polish | ⬜ Not Started |
-| 8 | | Git integration | ⬜ Not Started |
-| 9 | | Git integration | ⬜ Not Started |
-| 10 | | query_recent | ⬜ Not Started |
-| 11 | | query_recent | ⬜ Not Started |
-| 12 | | whats_changed | ⬜ Not Started |
-| 13 | | whats_changed | ⬜ Not Started |
+| 1 | Feb 21 | Project setup | ✅ Complete |
+| 2 | Feb 21 | CLI + Installer | ✅ Complete |
+| 3-4 | Feb 21 | CLI commands | ✅ Complete |
+| 5-7 | Feb 21 | MCP auto-config | ✅ Complete |
+| 8-9 | Feb 21 | Git integration | ✅ Complete |
+| 10-11 | Feb 21 | query_recent | ✅ Complete |
+| 12-13 | Feb 21 | whats_changed | ✅ Complete |
 | 14 | | Demo + README | ⬜ Not Started |
+
+---
+
+## What's Done (Day 1)
+
+**Shipped in one session:**
+
+1. **GitHub Repo**: https://github.com/Tobbiloba/engram
+2. **CLI** (`engram` command):
+   - `engram init` - Index folders
+   - `engram query` - Search from terminal
+   - `engram watch` - Background watcher
+   - `engram status` - Show stats
+   - `engram setup` - Auto-configure MCP
+3. **Smart Temporal Memory**:
+   - `query_recent` - Time-aware search
+   - `whats_changed` - Git activity summary
+   - `explain_file` - File history
+4. **Git Integration**: Full commit history parsing
+
+---
+
+## Remaining Tasks
+
+1. [ ] Record demo GIFs
+2. [ ] Polish README with GIFs
+3. [ ] Write launch posts
+4. [ ] Soft launch
 
 ---
 
@@ -123,6 +145,9 @@ pytest tests/
 
 # Check current index
 engram status
+
+# Test temporal memory
+python -c "from engram.git_utils import get_activity_summary; print(get_activity_summary('.', 7))"
 ```
 
 ---
@@ -132,3 +157,4 @@ engram status
 - Ship ugly, refine after feedback
 - Don't over-polish before launch
 - Get to 100 users before optimizing
+- **We crushed Week 1 + Week 2 in one day!**
