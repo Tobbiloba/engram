@@ -4,7 +4,7 @@ with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
 
 setup(
-    name="engram",
+    name="engram-dev",
     version="0.1.0",
     author="Project Engram",
     description="Local, persistent memory for AI development workflows",

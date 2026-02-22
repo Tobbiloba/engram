@@ -617,6 +617,70 @@ body {
   }
 }
 
+/* ==================== MAGNETIC BUTTON ==================== */
+
+.magnetic-btn {
+  border-radius: 100px;
+  will-change: transform;
+}
+
+/* ==================== BENTO GRID ==================== */
+
+.bento-card {
+  will-change: transform;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bento-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.bento-card:hover::before {
+  opacity: 1;
+}
+
+/* Color-specific hover glows */
+.bento-card[data-color="cyan"]:hover {
+  box-shadow: 0 20px 60px -20px rgba(34, 211, 238, 0.2);
+}
+
+.bento-card[data-color="violet"]:hover {
+  box-shadow: 0 20px 60px -20px rgba(167, 139, 250, 0.2);
+}
+
+.bento-card[data-color="emerald"]:hover {
+  box-shadow: 0 20px 60px -20px rgba(52, 211, 153, 0.2);
+}
+
+.bento-card[data-color="amber"]:hover {
+  box-shadow: 0 20px 60px -20px rgba(251, 191, 36, 0.2);
+}
+
+.bento-card[data-color="rose"]:hover {
+  box-shadow: 0 20px 60px -20px rgba(251, 113, 133, 0.2);
+}
+
+.bento-card[data-color="fuchsia"]:hover {
+  box-shadow: 0 20px 60px -20px rgba(232, 121, 249, 0.2);
+}
+
 /* ==================== CONTENT SECTIONS ==================== */
 
 .section {

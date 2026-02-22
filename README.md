@@ -54,17 +54,14 @@ engram setup
 ### Install
 
 ```bash
-# Clone and setup
-git clone https://github.com/Tobbiloba/engram.git
-cd engram
-python3 -m venv venv
-source venv/bin/activate
-pip install -e .
+pip install engram-dev
 ```
 
-Or one-liner (coming soon):
+Or from source:
 ```bash
-curl -sSL https://engram.dev/install | bash
+git clone https://github.com/Tobbiloba/engram.git
+cd engram
+pip install -e .
 ```
 
 ### Index Your Project
@@ -199,8 +196,8 @@ Edit `~/.cursor/mcp.json`:
 - [x] GPU acceleration
 - [x] Incremental updates
 - [x] Background watcher
-- [ ] Temporal memory (what changed recently?)
-- [ ] Git-aware context
+- [x] Temporal memory (what changed recently?)
+- [x] Git-aware context
 - [ ] Architecture insights
 - [ ] Desktop app
 
