@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 
 setup(
     name="engram-dev",
-    version="0.1.3",
+    version="0.2.0",
     author="Project Engram",
     description="Local, persistent memory for AI development workflows",
     long_description=long_description,

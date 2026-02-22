@@ -200,11 +200,19 @@ def run_ingest(
 
     # Load documents
     all_documents = []
+    ast_documents = []  # Documents from AST chunking (already chunked)
     successful_files = 0
+    ast_chunked_files = 0
     failed_files = []
     total_files = len(files_to_process)
 
+    # Initialize AST chunker for code files
+    from engram.ast_chunker import ASTChunker
+    ast_chunker = ASTChunker()
+    ast_supported = set(ast_chunker.supported_extensions)
+
     log(f"\nLoading {total_files} files...")
+    log(f"  (AST chunking enabled for: {', '.join(ast_supported)})")
 
     for i, file_path in enumerate(files_to_process, 1):
         file_ext = file_path.suffix.lower()
@@ -236,13 +244,38 @@ def run_ingest(
                 all_documents.extend(docs)
                 successful_files += 1
 
-            # Text and code files
+            # Code files - try AST chunking first
+            elif file_ext in ast_supported:
+                chunks = ast_chunker.chunk_file(file_path)
+
+                if chunks:
+                    # AST chunking succeeded - add pre-chunked documents
+                    ast_documents.extend([chunk.to_document() for chunk in chunks])
+                    ast_chunked_files += 1
+                    successful_files += 1
+                else:
+                    # AST failed, fall back to text loading
+                    try:
+                        loader = TextLoader(str(file_path), encoding="utf-8")
+                        docs = loader.load()
+                    except:
+                        loader = TextLoader(str(file_path), encoding="latin-1")
+                        docs = loader.load()
+
+                    for doc in docs:
+                        doc.metadata["source_file"] = str(file_path)
+                        doc.metadata["source_type"] = "code"
+                        doc.metadata["file_extension"] = file_ext
+
+                    all_documents.extend(docs)
+                    successful_files += 1
+
+            # Text and other code files (not AST supported)
             elif file_ext in TEXT_EXTENSIONS + CODE_EXTENSIONS:
                 try:
                     loader = TextLoader(str(file_path), encoding="utf-8")
                     docs = loader.load()
                 except:
-                    # Try with different encoding
                     loader = TextLoader(str(file_path), encoding="latin-1")
                     docs = loader.load()
 
@@ -274,13 +307,15 @@ def run_ingest(
     # Clear progress line
     print(" " * 80, end="\r")
 
-    if not all_documents:
+    if not all_documents and not ast_documents:
         log("Error: No documents were loaded successfully.")
         return False
 
     log(f"✓ Loaded {successful_files} files")
+    if ast_chunked_files > 0:
+        log(f"  ({ast_chunked_files} files with AST chunking - understands functions/classes)")
 
-    # Split into chunks
+    # Split regular documents into chunks (AST documents are already chunked)
     log("Splitting text into chunks...")
 
     text_splitter = RecursiveCharacterTextSplitter(
@@ -289,8 +324,15 @@ def run_ingest(
         length_function=len,
     )
 
-    chunks = text_splitter.split_documents(all_documents)
-    log(f"✓ Created {len(chunks)} text chunks")
+    text_chunks = text_splitter.split_documents(all_documents) if all_documents else []
+
+    # Combine AST chunks (already structured) with text chunks
+    chunks = ast_documents + text_chunks
+
+    log(f"✓ Created {len(chunks)} chunks")
+    if ast_documents:
+        log(f"  ({len(ast_documents)} AST chunks: functions, classes, methods)")
+        log(f"  ({len(text_chunks)} text chunks: PDFs, docs, other code)")
 
     # Create embeddings
     log(f"Loading embedding model...")
@@ -351,7 +393,10 @@ def run_ingest(
     log(f"✓ MEMORY CARTRIDGE CREATED!")
     log(f"{'=' * 50}")
     log(f"  Files indexed: {successful_files}")
-    log(f"  Chunks: {len(chunks)}")
+    log(f"  Total chunks: {len(chunks)}")
+    if ast_documents:
+        log(f"    - AST chunks (functions/classes): {len(ast_documents)}")
+        log(f"    - Text chunks (docs/other): {len(text_chunks)}")
     log(f"  Time: {mins}m {secs}s")
     log(f"  Location: {output_path}")
 
