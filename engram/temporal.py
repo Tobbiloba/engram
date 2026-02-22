@@ -2,24 +2,59 @@
 """
 Temporal Memory for Engram - Smart time-aware search.
 
-Combines semantic search with git history for context-aware results.
+Works with ANY folder - git is optional enhancement.
+Tracks file changes independently using modification times.
 """
 
 import json
+import os
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from engram.git_utils import (
-    is_git_repo,
-    get_repo_root,
-    get_recent_commits,
-    get_changed_files,
-    get_activity_summary,
-    format_commit_summary,
-    Commit
-)
+# Git utils are optional
+try:
+    from engram.git_utils import (
+        is_git_repo,
+        get_repo_root,
+        get_recent_commits,
+        get_changed_files,
+        get_activity_summary,
+        format_commit_summary,
+        Commit
+    )
+    GIT_AVAILABLE = True
+except ImportError:
+    GIT_AVAILABLE = False
+    Commit = None
+
+
+@dataclass
+class FileChange:
+    """Represents a file change."""
+    path: str
+    change_type: str  # 'added', 'modified', 'deleted'
+    old_mtime: Optional[float] = None
+    new_mtime: Optional[float] = None
+    size_bytes: int = 0
+
+    @property
+    def changed_at(self) -> datetime:
+        if self.new_mtime:
+            return datetime.fromtimestamp(self.new_mtime)
+        return datetime.now()
+
+    @property
+    def time_ago(self) -> str:
+        delta = datetime.now() - self.changed_at
+        if delta.days > 0:
+            return f"{delta.days} days ago"
+        elif delta.seconds > 3600:
+            return f"{delta.seconds // 3600} hours ago"
+        elif delta.seconds > 60:
+            return f"{delta.seconds // 60} minutes ago"
+        return "just now"
 
 
 @dataclass
@@ -29,263 +64,308 @@ class TemporalResult:
     source_file: str
     relevance_score: float
     last_modified: Optional[datetime] = None
-    recent_commits: List[Commit] = None
+    recent_commits: List = field(default_factory=list)
     is_recently_changed: bool = False
 
-    def __post_init__(self):
-        if self.recent_commits is None:
-            self.recent_commits = []
+
+class FileRegistry:
+    """
+    Tracks file states for change detection.
+    Works without git - stores modification times.
+    """
+
+    def __init__(self, registry_path: Path):
+        self.registry_path = registry_path
+        self.files: Dict[str, dict] = {}
+        self.load()
+
+    def load(self):
+        """Load registry from disk."""
+        if self.registry_path.exists():
+            try:
+                self.files = json.loads(self.registry_path.read_text())
+            except:
+                self.files = {}
+
+    def save(self):
+        """Save registry to disk."""
+        self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+        self.registry_path.write_text(json.dumps(self.files, indent=2))
+
+    def update_file(self, file_path: Path):
+        """Update registry with current file state."""
+        try:
+            stat = file_path.stat()
+            self.files[str(file_path)] = {
+                "mtime": stat.st_mtime,
+                "size": stat.st_size,
+                "indexed_at": datetime.now().isoformat()
+            }
+        except:
+            pass
+
+    def get_changes(self, folder: Path, days: int = 7) -> List[FileChange]:
+        """
+        Find files that changed since last index.
+
+        Returns list of FileChange objects for:
+        - New files (not in registry)
+        - Modified files (mtime changed)
+        - Deleted files (in registry but not on disk)
+        """
+        changes = []
+        cutoff = datetime.now() - timedelta(days=days)
+        current_files = set()
+
+        # Walk the folder
+        for root, dirs, files in os.walk(folder):
+            # Skip hidden and common excludes
+            dirs[:] = [d for d in dirs if not d.startswith('.')
+                      and d not in {'node_modules', '__pycache__', 'venv', '.venv'}]
+
+            for filename in files:
+                if filename.startswith('.'):
+                    continue
+
+                file_path = Path(root) / filename
+                current_files.add(str(file_path))
+
+                try:
+                    stat = file_path.stat()
+                    mtime = stat.st_mtime
+                    modified_at = datetime.fromtimestamp(mtime)
+
+                    # Skip if older than cutoff
+                    if modified_at < cutoff:
+                        continue
+
+                    stored = self.files.get(str(file_path))
+
+                    if stored is None:
+                        # New file
+                        changes.append(FileChange(
+                            path=str(file_path),
+                            change_type='added',
+                            new_mtime=mtime,
+                            size_bytes=stat.st_size
+                        ))
+                    elif stored.get('mtime', 0) < mtime:
+                        # Modified file
+                        changes.append(FileChange(
+                            path=str(file_path),
+                            change_type='modified',
+                            old_mtime=stored.get('mtime'),
+                            new_mtime=mtime,
+                            size_bytes=stat.st_size
+                        ))
+                except:
+                    continue
+
+        # Check for deleted files
+        for stored_path in self.files:
+            if stored_path not in current_files:
+                stored = self.files[stored_path]
+                stored_time = datetime.fromisoformat(stored.get('indexed_at', datetime.now().isoformat()))
+                if stored_time > cutoff:
+                    changes.append(FileChange(
+                        path=stored_path,
+                        change_type='deleted',
+                        old_mtime=stored.get('mtime')
+                    ))
+
+        # Sort by most recent first
+        changes.sort(key=lambda c: c.new_mtime or c.old_mtime or 0, reverse=True)
+        return changes
 
 
 class TemporalMemory:
     """
     Temporal Memory layer for Engram.
 
-    Adds time-awareness to semantic search by integrating
-    git history and file modification times.
+    Tracks changes using file modification times.
+    Git integration is optional - adds commit messages when available.
     """
 
-    def __init__(self, engram_path: Path, repo_path: Optional[Path] = None):
+    def __init__(self, engram_path: Path, source_path: Optional[Path] = None):
         """
         Initialize Temporal Memory.
 
         Args:
-            engram_path: Path to the engram index
-            repo_path: Path to the git repository (auto-detected if None)
+            engram_path: Path to the engram index folder
+            source_path: Path to the original source folder (for change detection)
         """
         self.engram_path = Path(engram_path)
-        self.repo_path = repo_path
-        self.registry_path = self.engram_path / "registry.json"
-        self.registry = self._load_registry()
+        self.source_path = Path(source_path) if source_path else None
 
-        # Auto-detect repo path from indexed files
-        if self.repo_path is None:
-            self.repo_path = self._detect_repo_path()
+        # File-based change tracking
+        self.registry = FileRegistry(self.engram_path / "file_registry.json")
 
-    def _load_registry(self) -> Dict:
-        """Load the file registry."""
-        if self.registry_path.exists():
-            try:
-                return json.loads(self.registry_path.read_text())
-            except Exception:
-                pass
-        return {}
-
-    def _detect_repo_path(self) -> Optional[Path]:
-        """Try to detect the git repo from indexed files."""
-        for file_path in list(self.registry.keys())[:10]:
-            path = Path(file_path)
-            if path.exists():
-                root = get_repo_root(path.parent)
-                if root:
-                    return root
-        return None
-
-    def get_recently_changed_files(self, days: int = 7) -> Dict[str, List[Commit]]:
-        """
-        Get files that changed recently with their commit info.
-
-        Args:
-            days: Number of days to look back
-
-        Returns:
-            Dict mapping file paths to their commits
-        """
-        if not self.repo_path or not is_git_repo(self.repo_path):
-            return {}
-
-        return get_changed_files(self.repo_path, days=days)
-
-    def query_recent(
-        self,
-        query: str,
-        vector_store,
-        days: int = 7,
-        k: int = 5
-    ) -> List[TemporalResult]:
-        """
-        Search with time awareness - prioritizes recently changed files.
-
-        Args:
-            query: The search query
-            vector_store: The FAISS vector store
-            days: Number of days to look back for "recent"
-            k: Number of results to return
-
-        Returns:
-            List of TemporalResult objects
-        """
-        # Get semantic search results
-        results = vector_store.similarity_search_with_score(query, k=k * 2)
-
-        # Get recently changed files
-        recent_changes = self.get_recently_changed_files(days=days)
-
-        temporal_results = []
-
-        for doc, score in results:
-            source_file = doc.metadata.get("source_file", "")
-            source_path = Path(source_file)
-
-            # Check if file was recently changed
-            relative_path = None
-            commits = []
-
-            if self.repo_path and source_path.exists():
-                try:
-                    relative_path = str(source_path.relative_to(self.repo_path))
-                    commits = recent_changes.get(relative_path, [])
-                except ValueError:
-                    pass
-
-            # Get file modification time
-            last_modified = None
-            if source_path.exists():
-                last_modified = datetime.fromtimestamp(source_path.stat().st_mtime)
-
-            temporal_results.append(TemporalResult(
-                content=doc.page_content,
-                source_file=source_file,
-                relevance_score=float(score),
-                last_modified=last_modified,
-                recent_commits=commits,
-                is_recently_changed=len(commits) > 0
-            ))
-
-        # Sort by: recently changed first, then by relevance
-        temporal_results.sort(
-            key=lambda r: (
-                -int(r.is_recently_changed),  # Recently changed first
-                r.relevance_score  # Then by relevance (lower is better for FAISS)
-            )
-        )
-
-        return temporal_results[:k]
+        # Check if git is available for this path
+        self.has_git = False
+        self.repo_root = None
+        if GIT_AVAILABLE and self.source_path:
+            self.has_git = is_git_repo(self.source_path)
+            if self.has_git:
+                self.repo_root = get_repo_root(self.source_path)
 
     def whats_changed(self, days: int = 7) -> str:
         """
         Get a summary of what changed recently.
-
-        Args:
-            days: Number of days to look back
-
-        Returns:
-            Human-readable summary
+        Works with or without git.
         """
-        if not self.repo_path or not is_git_repo(self.repo_path):
-            return "No git repository detected. Cannot track changes."
+        if not self.source_path:
+            return "No source path configured for change tracking."
 
-        return get_activity_summary(self.repo_path, days=days)
+        lines = []
+        lines.append(f"Changes in the last {days} days:\n")
+
+        # Get file-based changes
+        changes = self.registry.get_changes(self.source_path, days)
+
+        if not changes:
+            lines.append("No changes detected.")
+
+            # If git available, also show git activity
+            if self.has_git:
+                git_summary = get_activity_summary(self.source_path, days)
+                if git_summary:
+                    lines.append(f"\nGit activity:\n{git_summary}")
+
+            return "\n".join(lines)
+
+        # Group by change type
+        added = [c for c in changes if c.change_type == 'added']
+        modified = [c for c in changes if c.change_type == 'modified']
+        deleted = [c for c in changes if c.change_type == 'deleted']
+
+        if added:
+            lines.append(f"\n📁 Added ({len(added)} files):")
+            for c in added[:10]:
+                lines.append(f"  + {Path(c.path).name} ({c.time_ago})")
+            if len(added) > 10:
+                lines.append(f"  ... and {len(added) - 10} more")
+
+        if modified:
+            lines.append(f"\n✏️ Modified ({len(modified)} files):")
+            for c in modified[:10]:
+                lines.append(f"  ~ {Path(c.path).name} ({c.time_ago})")
+            if len(modified) > 10:
+                lines.append(f"  ... and {len(modified) - 10} more")
+
+        if deleted:
+            lines.append(f"\n🗑️ Deleted ({len(deleted)} files):")
+            for c in deleted[:5]:
+                lines.append(f"  - {Path(c.path).name}")
+
+        # Add git context if available
+        if self.has_git:
+            lines.append("\n📝 Git commits:")
+            commits = get_recent_commits(self.source_path, days, max_commits=5)
+            for commit in commits:
+                lines.append(f"  • {commit.message[:60]} ({commit.author})")
+
+        lines.append(f"\nTotal: {len(changes)} changes")
+        return "\n".join(lines)
 
     def explain_file(self, file_path: str) -> str:
         """
         Explain the recent history of a file.
-
-        Args:
-            file_path: Path to the file
-
-        Returns:
-            Human-readable explanation
+        Shows modification time and git history if available.
         """
         path = Path(file_path)
+
+        # Try to resolve relative to source
+        if not path.is_absolute() and self.source_path:
+            path = self.source_path / path
 
         if not path.exists():
             return f"File not found: {file_path}"
 
-        if not self.repo_path or not is_git_repo(self.repo_path):
-            # Just return basic file info
-            stat = path.stat()
-            modified = datetime.fromtimestamp(stat.st_mtime)
-            return f"File: {path.name}\nLast modified: {modified.strftime('%Y-%m-%d %H:%M')}\nSize: {stat.st_size} bytes"
+        lines = []
+        lines.append(f"File: {path.name}")
+        lines.append(f"Path: {path}")
 
-        # Get git history
-        from engram.git_utils import get_file_history
-
+        # Basic file info
         try:
-            relative_path = str(path.relative_to(self.repo_path))
-        except ValueError:
-            relative_path = str(path)
+            stat = path.stat()
+            mtime = datetime.fromtimestamp(stat.st_mtime)
+            size_kb = stat.st_size / 1024
+            lines.append(f"Size: {size_kb:.1f} KB")
+            lines.append(f"Last modified: {mtime.strftime('%Y-%m-%d %H:%M')}")
+        except:
+            pass
 
-        commits = get_file_history(self.repo_path, relative_path, max_commits=10)
+        # Check registry for when it was indexed
+        stored = self.registry.files.get(str(path))
+        if stored:
+            indexed_at = stored.get('indexed_at', 'Unknown')
+            lines.append(f"Indexed at: {indexed_at}")
 
-        if not commits:
-            return f"File: {path.name}\nNo git history found."
+        # Git history if available
+        if self.has_git:
+            lines.append("\nGit history:")
+            try:
+                file_changes = get_changed_files(self.source_path, days=30)
+                rel_path = str(path.relative_to(self.repo_root))
 
-        lines = [
-            f"File: {path.name}",
-            f"Path: {relative_path}",
-            "",
-            "Recent changes:",
-            format_commit_summary(commits, include_files=False)
-        ]
+                if rel_path in file_changes:
+                    commits = file_changes[rel_path]
+                    for commit in commits[:5]:
+                        lines.append(f"  • {commit.date.strftime('%m/%d')} - {commit.message[:50]}")
+                else:
+                    lines.append("  No recent commits for this file")
+            except:
+                lines.append("  Could not read git history")
 
         return "\n".join(lines)
 
+    def query_recent(self, query: str, vector_store, days: int = 7, k: int = 5) -> List[TemporalResult]:
+        """
+        Search with time awareness - boost recently changed files.
+        """
+        # Get base results from vector search
+        results = vector_store.similarity_search_with_score(query, k=k*2)
 
-def format_temporal_results(results: List[TemporalResult]) -> str:
-    """
-    Format temporal results for display.
+        # Get recent changes
+        recent_files = set()
+        if self.source_path:
+            changes = self.registry.get_changes(self.source_path, days)
+            recent_files = {c.path for c in changes}
 
-    Args:
-        results: List of TemporalResult objects
+        temporal_results = []
+        for doc, score in results:
+            source = doc.metadata.get('source_file', '')
 
-    Returns:
-        Formatted string
-    """
-    if not results:
-        return "No results found."
+            # Check if recently changed
+            is_recent = source in recent_files or any(
+                source.endswith(Path(f).name) for f in recent_files
+            )
 
-    lines = []
+            # Get modification time
+            mtime = None
+            try:
+                mtime = datetime.fromtimestamp(Path(source).stat().st_mtime)
+            except:
+                pass
 
-    for i, result in enumerate(results, 1):
-        source_name = Path(result.source_file).name
+            temporal_results.append(TemporalResult(
+                content=doc.page_content,
+                source_file=source,
+                relevance_score=float(score),
+                last_modified=mtime,
+                is_recently_changed=is_recent
+            ))
 
-        # Header
-        if result.is_recently_changed:
-            lines.append(f"[{i}] {source_name} (recently changed)")
-        else:
-            lines.append(f"[{i}] {source_name}")
+        # Sort: recent changes first, then by relevance
+        temporal_results.sort(
+            key=lambda r: (r.is_recently_changed, -r.relevance_score),
+            reverse=True
+        )
 
-        # Content preview
-        content = result.content[:300].replace("\n", " ")
-        if len(result.content) > 300:
-            content += "..."
-        lines.append(f"    {content}")
+        return temporal_results[:k]
 
-        # Recent commits
-        if result.recent_commits:
-            lines.append("")
-            lines.append("    Recent changes:")
-            for commit in result.recent_commits[:3]:
-                delta = datetime.now() - commit.date.replace(tzinfo=None)
-                if delta.days > 0:
-                    time_str = f"{delta.days}d ago"
-                else:
-                    hours = delta.seconds // 3600
-                    time_str = f"{hours}h ago" if hours > 0 else "just now"
-                lines.append(f"      • {commit.message} ({time_str})")
-
-        lines.append("")
-
-    return "\n".join(lines)
-
-
-if __name__ == "__main__":
-    # Test the module
-    import sys
-
-    if len(sys.argv) < 2:
-        print("Usage: python temporal.py <engram_path> [query]")
-        sys.exit(1)
-
-    engram_path = Path(sys.argv[1])
-
-    tm = TemporalMemory(engram_path)
-
-    if len(sys.argv) > 2:
-        query = " ".join(sys.argv[2:])
-        print(f"Query: {query}\n")
-        # Would need vector store to actually search
-        print("(Semantic search requires vector store)")
-    else:
-        print(tm.whats_changed(days=7))
+    def get_recent_files(self, days: int = 7) -> List[FileChange]:
+        """Get list of recently changed files."""
+        if not self.source_path:
+            return []
+        return self.registry.get_changes(self.source_path, days)

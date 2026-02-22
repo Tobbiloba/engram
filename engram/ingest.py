@@ -7,7 +7,9 @@ Supports: PDF, text, code, config files, images (with OCR)
 
 import sys
 import os
+import json
 from pathlib import Path
+from datetime import datetime
 from typing import List, Tuple, Optional
 
 # File extensions
@@ -321,9 +323,26 @@ def run_ingest(
 
     output_path = Path(output_folder)
 
-    # Save
+    # Save vector store
     log(f"Saving to: {output_folder}/")
     vector_store.save_local(str(output_path))
+
+    # Save file registry for change tracking
+    from engram.temporal import FileRegistry
+    registry = FileRegistry(output_path / "file_registry.json")
+    for file_path in files_to_process:
+        registry.update_file(file_path)
+    registry.save()
+
+    # Save metadata (source path for temporal features)
+    metadata = {
+        "source_path": str(input_path.absolute()),
+        "indexed_at": datetime.now().isoformat(),
+        "files_count": successful_files,
+        "chunks_count": len(chunks)
+    }
+    (output_path / "metadata.json").write_text(json.dumps(metadata, indent=2))
+    log("✓ File registry saved (for change tracking)")
 
     elapsed = time.time() - start_time
     mins, secs = divmod(int(elapsed), 60)

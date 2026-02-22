@@ -133,17 +133,25 @@ log(f"   Memory cartridge '{engram_path.name}' is ready!")
 log("\nInitializing Temporal Memory...")
 
 try:
-    from engram.temporal import TemporalMemory, format_temporal_results
-    from engram.git_utils import is_git_repo
+    import json
+    from engram.temporal import TemporalMemory
 
-    temporal_memory = TemporalMemory(engram_path)
+    # Load source path from metadata
+    source_path = None
+    metadata_file = engram_path / "metadata.json"
+    if metadata_file.exists():
+        metadata = json.loads(metadata_file.read_text())
+        source_path = metadata.get("source_path")
+        log(f"   Source folder: {source_path}")
 
-    if temporal_memory.repo_path and is_git_repo(temporal_memory.repo_path):
-        log(f"   Git repository detected: {temporal_memory.repo_path}")
-        TEMPORAL_ENABLED = True
+    temporal_memory = TemporalMemory(engram_path, source_path)
+
+    if temporal_memory.has_git:
+        log(f"   Git repository detected: {temporal_memory.repo_root}")
     else:
-        log("   No git repository detected - temporal features limited")
-        TEMPORAL_ENABLED = True  # Still enable, just without git
+        log("   File-based change tracking enabled")
+
+    TEMPORAL_ENABLED = True
 except ImportError as e:
     log(f"   Temporal Memory not available: {e}")
     temporal_memory = None
