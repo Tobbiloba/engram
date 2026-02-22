@@ -265,6 +265,21 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
+/* Italic styling - elegant */
+em, .italic {
+  font-style: italic;
+}
+
+/* Emphasized text */
+.text-emphasis {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Code inline */
+code {
+  font-family: var(--font-mono);
+}
+
 /* Subtitle */
 .subtitle {
   font-size: clamp(0.875rem, 1.5vw, 1.125rem);

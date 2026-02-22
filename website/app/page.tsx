@@ -269,11 +269,15 @@ const AnimatedTerminal: FC<{
   className?: string;
 }> = ({ lines, title = "terminal", className = "" }) => {
   const [visibleLines, setVisibleLines] = useState(0);
+  const [cycle, setCycle] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const isInView = useInView(ref, { once: false, margin: "-100px" });
 
   useEffect(() => {
-    if (!isInView) return;
+    if (!isInView) {
+      setVisibleLines(0);
+      return;
+    }
 
     let timeout: NodeJS.Timeout;
     const showNextLine = (index: number) => {
@@ -283,21 +287,30 @@ const AnimatedTerminal: FC<{
           setVisibleLines(index + 1);
           showNextLine(index + 1);
         }, delay);
+      } else {
+        // Loop after completion
+        timeout = setTimeout(() => {
+          setVisibleLines(0);
+          setCycle(c => c + 1);
+        }, 3000);
       }
     };
 
-    showNextLine(0);
-    return () => clearTimeout(timeout);
-  }, [isInView, lines]);
+    const startDelay = setTimeout(() => showNextLine(0), 500);
+    return () => {
+      clearTimeout(timeout);
+      clearTimeout(startDelay);
+    };
+  }, [isInView, lines, cycle]);
 
   const getLineColor = (type: string) => {
     switch (type) {
       case 'command': return 'text-white';
-      case 'output': return 'text-white/60';
-      case 'comment': return 'text-white/30';
+      case 'output': return 'text-white/50';
+      case 'comment': return 'text-white/20';
       case 'success': return 'text-emerald-400';
       case 'file': return 'text-cyan-400';
-      default: return 'text-white/60';
+      default: return 'text-white/50';
     }
   };
 
@@ -308,7 +321,7 @@ const AnimatedTerminal: FC<{
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.6 }}
-      className={`terminal-window rounded-2xl overflow-hidden border border-white/10 bg-[#0c0c0c] ${className}`}
+      className={`terminal-window rounded-2xl overflow-hidden border border-white/10 bg-[#0a0a0a] shadow-2xl shadow-black/50 ${className}`}
     >
       {/* Terminal header */}
       <div className="flex items-center gap-2 px-4 py-3 bg-white/[0.02] border-b border-white/5">
@@ -317,31 +330,32 @@ const AnimatedTerminal: FC<{
           <div className="w-3 h-3 rounded-full bg-[#febc2e]" />
           <div className="w-3 h-3 rounded-full bg-[#28c840]" />
         </div>
-        <span className="ml-2 text-xs text-white/30 font-mono">{title}</span>
+        <span className="ml-3 text-[11px] text-white/20 font-mono tracking-wide">{title}</span>
       </div>
 
       {/* Terminal content */}
-      <div className="p-5 font-mono text-sm space-y-2 min-h-[200px]">
+      <div className="p-6 font-mono text-[13px] leading-relaxed space-y-1.5 min-h-[240px]">
         {lines.slice(0, visibleLines).map((line, i) => (
           <motion.div
-            key={i}
+            key={`${cycle}-${i}`}
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.2 }}
             className={`${getLineColor(line.type)} ${line.type === 'command' ? 'flex items-center gap-2' : ''}`}
           >
-            {line.type === 'command' && <span className="text-emerald-400">$</span>}
-            {line.type === 'file' && <span className="text-white/30 mr-2">→</span>}
-            <span>{line.content}</span>
-            {line.type === 'command' && i === visibleLines - 1 && (
-              <motion.span
-                animate={{ opacity: [1, 0] }}
-                transition={{ duration: 0.8, repeat: Infinity }}
-                className="w-2 h-4 bg-white/80 ml-1"
-              />
-            )}
+            {line.type === 'command' && <span className="text-violet-400">❯</span>}
+            {line.type === 'file' && <span className="text-white/20 mr-2">│</span>}
+            {line.type === 'success' && <span className="mr-1">✓</span>}
+            <span className={line.type === 'command' ? 'text-white/90' : ''}>{line.content}</span>
           </motion.div>
         ))}
+        {visibleLines > 0 && visibleLines < lines.length && (
+          <motion.span
+            animate={{ opacity: [1, 0] }}
+            transition={{ duration: 0.6, repeat: Infinity }}
+            className="inline-block w-2 h-4 bg-violet-400/80 ml-5"
+          />
+        )}
       </div>
     </motion.div>
   );
@@ -535,7 +549,7 @@ const HeroSection: FC = () => {
           <MouseParallax intensity={0.02}>
             <h1 className="headline mb-8">
               <TextReveal delay={0.2}>Your AI</TextReveal>
-              <TextReveal delay={0.35} className="text-outline">Finally</TextReveal>
+              <TextReveal delay={0.35} className="text-outline italic">Finally</TextReveal>
               <TextReveal delay={0.5} className="text-gradient">Remembers</TextReveal>
             </h1>
           </MouseParallax>
@@ -547,8 +561,9 @@ const HeroSection: FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 1, ease: [0.16, 1, 0.3, 1] }}
           >
-            Persistent context for your codebase. Architecture decisions, recent changes,
-            and project intent—available in every AI conversation.
+            <span className="text-white/60">Persistent context</span> for your codebase.
+            <em className="text-white/40 not-italic"> Architecture decisions, recent changes,
+            and project intent</em>—<span className="text-white">available in every conversation.</span>
           </motion.p>
 
           {/* CTA Buttons */}
@@ -635,12 +650,19 @@ const ProblemSection: FC = () => {
           transition={{ duration: 0.8 }}
           className="mb-16"
         >
-          <span className="text-red-400/80 text-sm font-medium uppercase tracking-widest">The Problem</span>
-          <h2 className="mt-4 text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.1]">
+          <span className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-red-400/60 mb-6">
+            <span className="w-8 h-px bg-red-400/40" />
+            The Problem
+          </span>
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.05]">
             Every conversation
             <br />
-            <span className="text-white/30">starts from zero.</span>
+            <span className="text-white/20 italic font-light">starts from zero.</span>
           </h2>
+          <p className="mt-6 text-lg text-white/40 max-w-lg leading-relaxed">
+            Your AI doesn't remember <em className="text-white/60 not-italic">yesterday's architecture decisions</em>,
+            the refactor you did <em className="text-white/60 not-italic">this morning</em>, or why that function exists.
+          </p>
         </motion.div>
 
         <ComparisonBlock />
@@ -650,17 +672,25 @@ const ProblemSection: FC = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          className="mt-12 grid grid-cols-3 gap-8 py-8 border-t border-white/5"
+          className="mt-16 grid grid-cols-3 gap-8 py-10 border-t border-white/5"
         >
           {[
-            { value: "5 min", label: "Average context window" },
-            { value: "73%", label: "Time spent re-explaining" },
-            { value: "∞", label: "Times you've said 'as I mentioned'" },
+            { value: "5min", label: "context window", sub: "then it's gone" },
+            { value: "73%", label: "time wasted", sub: "re-explaining context" },
+            { value: "∞", label: "frustration", sub: '"as I mentioned..."' },
           ].map((stat, i) => (
-            <div key={i} className="text-center">
-              <p className="text-2xl md:text-3xl font-bold text-white/20">{stat.value}</p>
-              <p className="mt-1 text-xs text-white/40">{stat.label}</p>
-            </div>
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.5 + i * 0.1 }}
+              className="text-center"
+            >
+              <p className="text-3xl md:text-4xl font-bold text-white/10 tracking-tight">{stat.value}</p>
+              <p className="mt-2 text-sm font-medium text-white/40">{stat.label}</p>
+              <p className="mt-0.5 text-xs text-white/20 italic">{stat.sub}</p>
+            </motion.div>
           ))}
         </motion.div>
       </div>
@@ -685,21 +715,23 @@ const FeaturesSection: FC = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
             >
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
                   <svg className="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
-                <span className="text-sm text-cyan-400 font-medium">Semantic Search</span>
+                <span className="text-xs text-cyan-400/80 font-medium uppercase tracking-[0.15em]">Semantic Search</span>
               </div>
-              <h3 className="text-3xl md:text-4xl font-semibold tracking-tight leading-tight">
-                Ask in plain English.
+              <h3 className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight leading-[1.1]">
+                Ask in <em className="italic font-light text-cyan-300/80">plain English.</em>
                 <br />
-                <span className="text-white/40">Get precise results.</span>
+                <span className="text-white/30">Get precise results.</span>
               </h3>
-              <p className="mt-4 text-white/50 leading-relaxed">
-                No more grep gymnastics. Ask "where do we handle auth errors" and get exactly what you need—with relevance scores.
+              <p className="mt-6 text-white/40 leading-relaxed text-lg">
+                No more <code className="text-xs bg-white/5 px-2 py-1 rounded text-white/60">grep</code> gymnastics.
+                Ask <em className="not-italic text-white/60">"where do we handle auth errors"</em> and get exactly what you need—
+                <span className="text-cyan-400/60">with relevance scores.</span>
               </p>
             </motion.div>
 
@@ -732,21 +764,22 @@ const FeaturesSection: FC = () => {
               transition={{ duration: 0.6 }}
               className="lg:order-2"
             >
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
                   <svg className="w-5 h-5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <span className="text-sm text-violet-400 font-medium">Git-Aware Context</span>
+                <span className="text-xs text-violet-400/80 font-medium uppercase tracking-[0.15em]">Git-Aware Context</span>
               </div>
-              <h3 className="text-3xl md:text-4xl font-semibold tracking-tight leading-tight">
-                Knows what changed.
+              <h3 className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight leading-[1.1]">
+                Knows <em className="italic font-light text-violet-300/80">what changed.</em>
                 <br />
-                <span className="text-white/40">And when.</span>
+                <span className="text-white/30">And when.</span>
               </h3>
-              <p className="mt-4 text-white/50 leading-relaxed">
-                Engram reads your git history. Recent changes rank higher. Your AI knows what you touched yesterday, not just what exists.
+              <p className="mt-6 text-white/40 leading-relaxed text-lg">
+                Engram reads your <span className="text-white/60">git history</span>. Recent changes rank higher.
+                Your AI knows what you touched <em className="not-italic text-violet-400/60">yesterday</em>, not just what exists.
               </p>
             </motion.div>
 
@@ -782,27 +815,35 @@ const FeaturesSection: FC = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
             >
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
                   <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                   </svg>
                 </div>
-                <span className="text-sm text-emerald-400 font-medium">100% Local</span>
+                <span className="text-xs text-emerald-400/80 font-medium uppercase tracking-[0.15em]">100% Local</span>
               </div>
-              <h3 className="text-3xl md:text-4xl font-semibold tracking-tight leading-tight">
-                Your code stays yours.
+              <h3 className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight leading-[1.1]">
+                Your code <em className="italic font-light text-emerald-300/80">stays yours.</em>
                 <br />
-                <span className="text-white/40">Always.</span>
+                <span className="text-white/30">Always.</span>
               </h3>
-              <p className="mt-4 text-white/50 leading-relaxed">
-                No cloud uploads. No API calls with your source code. Everything runs on your machine. Your proprietary code never leaves.
+              <p className="mt-6 text-white/40 leading-relaxed text-lg">
+                <span className="text-white/60">No cloud uploads.</span> No API calls with your source code.
+                Everything runs on <em className="not-italic text-emerald-400/60">your machine</em>. Your proprietary code never leaves.
               </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                {['No cloud', 'No uploads', 'No tracking', 'Open source'].map((tag) => (
-                  <span key={tag} className="px-3 py-1.5 text-xs font-medium text-emerald-400/80 bg-emerald-500/10 rounded-full border border-emerald-500/20">
+              <div className="mt-8 flex flex-wrap gap-2">
+                {['No cloud', 'No uploads', 'No tracking', 'Open source'].map((tag, i) => (
+                  <motion.span
+                    key={tag}
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.3 + i * 0.1 }}
+                    className="px-4 py-2 text-xs font-medium text-emerald-400/70 bg-emerald-500/5 rounded-full border border-emerald-500/20 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-colors cursor-default"
+                  >
                     {tag}
-                  </span>
+                  </motion.span>
                 ))}
               </div>
             </motion.div>
@@ -853,52 +894,61 @@ const FeaturesSection: FC = () => {
 
 const HowItWorks: FC = () => {
   return (
-    <section id="how" className="section bg-black relative overflow-hidden">
+    <section id="how" className="section bg-black relative overflow-hidden border-t border-white/5">
       <div className="orb orb-1" style={{ bottom: "-40%", right: "-20%" }} />
 
-      <div className="max-w-[1400px] mx-auto">
+      <div className="max-w-[1200px] mx-auto">
         <motion.div
-          initial={{ opacity: 0, y: 60 }}
+          initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.8 }}
           className="text-center mb-20"
         >
-          <span className="floating-badge mb-6 inline-flex">
-            <span className="badge-dot" />
-            <span>How it works</span>
+          <span className="inline-flex items-center gap-3 text-xs font-medium uppercase tracking-[0.2em] text-white/30 mb-6">
+            <span className="w-8 h-px bg-white/20" />
+            How it works
+            <span className="w-8 h-px bg-white/20" />
           </span>
-          <h2 className="text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.1]">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.05]">
             Three commands.
             <br />
-            <span className="text-gradient">Instant context.</span>
+            <em className="italic font-light text-gradient">Instant context.</em>
           </h2>
+          <p className="mt-6 text-lg text-white/30 max-w-lg mx-auto">
+            Setup takes <span className="text-white/50">less than two minutes</span>. Seriously.
+          </p>
         </motion.div>
 
         {/* Steps */}
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-3 gap-6">
           {[
-            { step: "01", title: "Index", cmd: "engram init ~/project", desc: "Scan and index your codebase" },
-            { step: "02", title: "Configure", cmd: "engram setup", desc: "Connect to your AI tools" },
-            { step: "03", title: "Query", cmd: "engram query \"...\"", desc: "Ask questions naturally" },
+            { step: "01", title: "Index", cmd: "engram init ~/project", desc: "Scan and index your codebase", highlight: "init" },
+            { step: "02", title: "Connect", cmd: "engram setup", desc: "Configure MCP integration", highlight: "setup" },
+            { step: "03", title: "Query", cmd: 'engram query "..."', desc: "Ask questions naturally", highlight: "query" },
           ].map((item, i) => (
             <motion.div
               key={item.step}
               initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.8, delay: i * 0.15, ease: [0.16, 1, 0.3, 1] }}
-              className="relative"
+              transition={{ duration: 0.6, delay: i * 0.1 }}
+              className="group relative"
             >
-              <span className="text-8xl font-bold text-white/[0.03] absolute -top-8 -left-2">
-                {item.step}
-              </span>
-              <div className="relative p-8 rounded-2xl border border-white/5 bg-white/[0.02]">
-                <h3 className="text-2xl font-semibold mb-2">{item.title}</h3>
-                <p className="text-white/40 mb-6">{item.desc}</p>
-                <div className="p-4 rounded-xl bg-black border border-white/10 font-mono text-sm">
-                  <span className="text-cyan-300">$</span>{" "}
-                  <span className="text-white/80">{item.cmd}</span>
+              <div className="absolute -inset-px rounded-2xl bg-gradient-to-b from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="relative h-full p-8 rounded-2xl border border-white/5 bg-white/[0.01]">
+                <span className="text-7xl font-bold text-white/[0.03] absolute top-4 right-4">
+                  {item.step}
+                </span>
+                <div className="relative">
+                  <h3 className="text-xl font-semibold mb-1">{item.title}</h3>
+                  <p className="text-sm text-white/30 mb-6">{item.desc}</p>
+                  <div className="p-4 rounded-xl bg-black/60 border border-white/5 font-mono text-sm">
+                    <span className="text-violet-400">❯</span>{" "}
+                    <span className="text-white/50">engram</span>{" "}
+                    <span className="text-cyan-400">{item.highlight}</span>
+                    <span className="text-white/30">{item.cmd.replace(`engram ${item.highlight}`, '')}</span>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -915,31 +965,49 @@ const HowItWorks: FC = () => {
 
 const CTASection: FC = () => {
   return (
-    <section className="section bg-black relative overflow-hidden">
+    <section className="section bg-black relative overflow-hidden border-t border-white/5">
       <div className="orb orb-3" style={{ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }} />
 
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        whileInView={{ opacity: 1, scale: 1 }}
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-        className="max-w-4xl mx-auto text-center relative z-10"
+        transition={{ duration: 0.8 }}
+        className="max-w-3xl mx-auto text-center relative z-10"
       >
-        <h2 className="text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.1] mb-6">
-          Ready to give your AI
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.2 }}
+          className="text-sm text-white/30 uppercase tracking-[0.2em] mb-6"
+        >
+          Ready?
+        </motion.p>
+        <h2 className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.05] mb-6">
+          Give your AI
           <br />
-          <span className="text-gradient">a memory upgrade?</span>
+          <em className="italic font-light text-gradient">a memory upgrade.</em>
         </h2>
-        <p className="text-lg text-white/40 max-w-xl mx-auto mb-10">
-          Start indexing your codebase in under 2 minutes.
-          Free, open-source, and built for privacy.
+        <p className="text-lg text-white/30 max-w-md mx-auto mb-10 leading-relaxed">
+          Start indexing in <span className="text-white/50">under 2 minutes</span>.
+          <br />
+          <span className="text-white/20">Free, open-source, built for privacy.</span>
         </p>
-        <MagneticButton href="https://github.com/Tobbiloba/engram" variant="primary">
-          <span>Get Started Free</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </MagneticButton>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <MagneticButton href="https://github.com/Tobbiloba/engram" variant="primary">
+            <span>Get Started</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </MagneticButton>
+          <MagneticButton href="https://github.com/Tobbiloba/engram" variant="secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+            <span>View on GitHub</span>
+          </MagneticButton>
+        </div>
       </motion.div>
     </section>
   );
@@ -951,22 +1019,50 @@ const CTASection: FC = () => {
 
 const Footer: FC = () => {
   return (
-    <footer className="py-12 px-6 md:px-12 lg:px-20 border-t border-white/5">
-      <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-        <a href="/" className="nav-logo" data-cursor-hover>
-          <div className="logo-icon">
-            <span />
+    <footer className="py-16 px-6 md:px-12 lg:px-20 border-t border-white/5">
+      <div className="max-w-[1200px] mx-auto">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-12">
+          <div>
+            <a href="/" className="nav-logo mb-4 inline-flex" data-cursor-hover>
+              <div className="logo-icon">
+                <span />
+              </div>
+              <span>Engram</span>
+            </a>
+            <p className="text-sm text-white/20 max-w-xs leading-relaxed">
+              <em className="not-italic text-white/30">Persistent memory</em> for AI development.
+              <br />Your codebase, always remembered.
+            </p>
           </div>
-          <span>Engram</span>
-        </a>
 
-        <div className="flex items-center gap-8 text-sm text-white/40">
-          <a href="#" className="hover:text-white transition-colors" data-cursor-hover>Docs</a>
-          <a href="https://github.com/Tobbiloba/engram" target="_blank" rel="noreferrer" className="hover:text-white transition-colors" data-cursor-hover>GitHub</a>
-          <a href="#" className="hover:text-white transition-colors" data-cursor-hover>Twitter</a>
+          <div className="flex gap-16">
+            <div>
+              <p className="text-xs text-white/40 uppercase tracking-widest mb-4">Product</p>
+              <div className="flex flex-col gap-3">
+                <a href="#features" className="text-sm text-white/30 hover:text-white transition-colors" data-cursor-hover>Features</a>
+                <a href="#how" className="text-sm text-white/30 hover:text-white transition-colors" data-cursor-hover>How it works</a>
+                <a href="#" className="text-sm text-white/30 hover:text-white transition-colors" data-cursor-hover>Documentation</a>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-white/40 uppercase tracking-widest mb-4">Connect</p>
+              <div className="flex flex-col gap-3">
+                <a href="https://github.com/Tobbiloba/engram" target="_blank" rel="noreferrer" className="text-sm text-white/30 hover:text-white transition-colors" data-cursor-hover>GitHub</a>
+                <a href="#" className="text-sm text-white/30 hover:text-white transition-colors" data-cursor-hover>Twitter</a>
+                <a href="#" className="text-sm text-white/30 hover:text-white transition-colors" data-cursor-hover>Discord</a>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <p className="text-sm text-white/20">MIT Licensed</p>
+        <div className="mt-16 pt-8 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <p className="text-xs text-white/15">
+            MIT Licensed · Built with <em className="not-italic text-white/25">obsessive attention</em> to detail
+          </p>
+          <p className="text-xs text-white/15">
+            © 2024 Engram
+          </p>
+        </div>
       </div>
     </footer>
   );
