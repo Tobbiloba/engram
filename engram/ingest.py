@@ -6,6 +6,7 @@ Supports: PDF, text, code, config files, images (with OCR)
 """
 
 import sys
+import os
 from pathlib import Path
 from typing import List, Tuple, Optional
 
@@ -107,15 +108,22 @@ def run_ingest(
     Returns:
         True if successful, False otherwise
     """
+    import time
     from langchain_community.document_loaders import PyPDFLoader, TextLoader
     from langchain_core.documents import Document
     from langchain_text_splitters import RecursiveCharacterTextSplitter
     from langchain_huggingface import HuggingFaceEmbeddings
     from langchain_community.vectorstores import FAISS
 
+    start_time = time.time()
+
     def log(msg):
         if not quiet:
-            print(msg)
+            print(msg, flush=True)
+
+    def progress(msg):
+        if not quiet:
+            print(f"  {msg}", end="\r", flush=True)
 
     input_path = Path(input_path)
     if not input_path.exists():
@@ -124,6 +132,15 @@ def run_ingest(
 
     DEVICE = get_best_device()
     OCR_ENABLED = use_ocr and check_ocr_available()
+
+    # Folders to skip entirely
+    SKIP_FOLDERS = {
+        'node_modules', '__pycache__', '.git', '.svn', 'venv', '.venv',
+        'env', '.env', 'vendor', '.cache', 'cache', '.npm', '.yarn',
+        'Library', 'Applications', '.Trash', 'Pictures', 'Music', 'Movies',
+        '.docker', '.kube', 'pods', '.local', '.config', 'build', 'dist',
+        '.next', '.nuxt', 'target', '.cargo', '.rustup', 'Caches',
+    }
 
     # Collect files
     files_to_process = []
@@ -137,24 +154,41 @@ def run_ingest(
 
     elif input_path.is_dir():
         log(f"Scanning folder: {input_path}")
+        log(f"  (This may take a moment for large folders...)")
 
-        for ext in ALL_EXTENSIONS:
-            found = list(input_path.rglob(f"*{ext}"))
-            found.extend(list(input_path.rglob(f"*{ext.upper()}")))
-            files_to_process.extend(found)
+        file_count = 0
+        skipped_folders = set()
 
-        # Remove duplicates and sort
-        files_to_process = sorted(set(files_to_process))
+        # Walk the directory tree manually for better control
+        for root, dirs, files in os.walk(input_path):
+            root_path = Path(root)
 
-        # Filter out hidden files and common excludes
-        files_to_process = [
-            f for f in files_to_process
-            if not any(part.startswith('.') for part in f.parts)
-            and 'node_modules' not in f.parts
-            and '__pycache__' not in f.parts
-            and 'venv' not in f.parts
-            and '.git' not in f.parts
-        ]
+            # Skip hidden folders and excluded folders
+            dirs[:] = [d for d in dirs if not d.startswith('.') and d not in SKIP_FOLDERS]
+
+            # Show progress
+            file_count += 1
+            if file_count % 100 == 0:
+                progress(f"Scanned {file_count} directories...")
+
+            for filename in files:
+                # Skip hidden files
+                if filename.startswith('.'):
+                    continue
+
+                file_path = root_path / filename
+                ext = file_path.suffix.lower()
+
+                if ext in ALL_EXTENSIONS:
+                    # Skip large files (>10MB)
+                    try:
+                        if file_path.stat().st_size > 10 * 1024 * 1024:
+                            continue
+                    except:
+                        continue
+                    files_to_process.append(file_path)
+
+        print(" " * 50, end="\r")  # Clear progress line
 
         if not files_to_process:
             log(f"Error: No supported files found in {input_path}")
@@ -166,14 +200,18 @@ def run_ingest(
     all_documents = []
     successful_files = 0
     failed_files = []
+    total_files = len(files_to_process)
 
-    log(f"\nIndexing {len(files_to_process)} files...")
+    log(f"\nLoading {total_files} files...")
 
     for i, file_path in enumerate(files_to_process, 1):
         file_ext = file_path.suffix.lower()
 
-        if not quiet and i % 10 == 0:
-            print(f"  Progress: {i}/{len(files_to_process)}", end="\r")
+        # Show progress every file
+        if not quiet:
+            pct = int((i / total_files) * 100)
+            bar = "█" * (pct // 5) + "░" * (20 - pct // 5)
+            print(f"  [{bar}] {pct}% ({i}/{total_files}) {file_path.name[:30]}", end="\r", flush=True)
 
         try:
             # PDF files
@@ -231,11 +269,14 @@ def run_ingest(
         except Exception as e:
             failed_files.append((file_path, str(e)))
 
+    # Clear progress line
+    print(" " * 80, end="\r")
+
     if not all_documents:
         log("Error: No documents were loaded successfully.")
         return False
 
-    log(f"\nLoaded {successful_files} files successfully")
+    log(f"✓ Loaded {successful_files} files")
 
     # Split into chunks
     log("Splitting text into chunks...")
@@ -247,10 +288,11 @@ def run_ingest(
     )
 
     chunks = text_splitter.split_documents(all_documents)
-    log(f"Created {len(chunks)} text chunks")
+    log(f"✓ Created {len(chunks)} text chunks")
 
     # Create embeddings
-    log(f"Creating embeddings (device: {DEVICE})...")
+    log(f"Loading embedding model...")
+    log(f"  (First run downloads ~90MB model from HuggingFace)")
 
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2",
@@ -258,13 +300,18 @@ def run_ingest(
         encode_kwargs={"normalize_embeddings": True}
     )
 
+    log(f"✓ Model loaded (device: {DEVICE})")
+
     # Create vector store
-    log("Building vector database...")
+    log(f"Building vector database ({len(chunks)} chunks)...")
+    log(f"  (This may take a few minutes for large codebases)")
 
     vector_store = FAISS.from_documents(
         documents=chunks,
         embedding=embeddings
     )
+
+    log("✓ Vector database built")
 
     # Determine output folder
     if output_name:
@@ -278,10 +325,16 @@ def run_ingest(
     log(f"Saving to: {output_folder}/")
     vector_store.save_local(str(output_path))
 
-    log(f"\n✓ Memory cartridge created!")
+    elapsed = time.time() - start_time
+    mins, secs = divmod(int(elapsed), 60)
+
+    log(f"\n{'=' * 50}")
+    log(f"✓ MEMORY CARTRIDGE CREATED!")
+    log(f"{'=' * 50}")
     log(f"  Files indexed: {successful_files}")
     log(f"  Chunks: {len(chunks)}")
-    log(f"  Location: {output_path.absolute()}")
+    log(f"  Time: {mins}m {secs}s")
+    log(f"  Location: {output_path}")
 
     if failed_files:
         log(f"\n  Skipped {len(failed_files)} files due to errors")

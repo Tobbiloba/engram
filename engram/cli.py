@@ -20,7 +20,7 @@ import signal
 from pathlib import Path
 from datetime import datetime
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 DEFAULT_ENGRAM_DIR = Path.home() / ".engram"
 
 

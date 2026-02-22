@@ -241,11 +241,11 @@ const MagneticButton: FC<{
     >
       {/* Animated background layers */}
       <span className="absolute inset-0 bg-white rounded-full" />
-      <span className="absolute inset-0 bg-gradient-to-r from-cyan-400 via-violet-400 to-fuchsia-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      <span className="absolute inset-0 bg-black rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
       {/* Shine effect */}
       <span className="absolute inset-0 opacity-0 group-hover:opacity-100">
-        <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12" />
+        <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12" />
       </span>
 
       {/* Content */}
@@ -254,7 +254,7 @@ const MagneticButton: FC<{
       </span>
 
       {/* Border glow */}
-      <span className="absolute -inset-px rounded-full bg-gradient-to-r from-cyan-400 via-violet-400 to-fuchsia-400 opacity-0 group-hover:opacity-50 blur-sm transition-opacity duration-500" />
+      <span className="absolute -inset-px rounded-full bg-white opacity-0 group-hover:opacity-20 blur-sm transition-opacity duration-500" />
     </motion.a>
   );
 };
@@ -308,8 +308,8 @@ const AnimatedTerminal: FC<{
       case 'command': return 'text-white';
       case 'output': return 'text-white/50';
       case 'comment': return 'text-white/20';
-      case 'success': return 'text-emerald-400';
-      case 'file': return 'text-cyan-400';
+      case 'success': return 'text-white/70';
+      case 'file': return 'text-white/80';
       default: return 'text-white/50';
     }
   };
@@ -343,7 +343,7 @@ const AnimatedTerminal: FC<{
             transition={{ duration: 0.2 }}
             className={`${getLineColor(line.type)} ${line.type === 'command' ? 'flex items-center gap-2' : ''}`}
           >
-            {line.type === 'command' && <span className="text-violet-400">❯</span>}
+            {line.type === 'command' && <span className="text-white/50">❯</span>}
             {line.type === 'file' && <span className="text-white/20 mr-2">│</span>}
             {line.type === 'success' && <span className="mr-1">✓</span>}
             <span className={line.type === 'command' ? 'text-white/90' : ''}>{line.content}</span>
@@ -353,7 +353,7 @@ const AnimatedTerminal: FC<{
           <motion.span
             animate={{ opacity: [1, 0] }}
             transition={{ duration: 0.6, repeat: Infinity }}
-            className="inline-block w-2 h-4 bg-violet-400/80 ml-5"
+            className="inline-block w-2 h-4 bg-white/60 ml-5"
           />
         )}
       </div>
@@ -376,23 +376,22 @@ const ComparisonBlock: FC = () => {
         initial={{ opacity: 0, x: -30 }}
         animate={isInView ? { opacity: 1, x: 0 } : {}}
         transition={{ duration: 0.6 }}
-        className="relative rounded-2xl border border-red-500/20 bg-red-500/[0.02] p-6 overflow-hidden"
+        className="relative rounded-2xl border border-white/5 bg-white/[0.01] p-6 overflow-hidden"
       >
-        <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 blur-3xl" />
         <div className="relative">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-2 h-2 rounded-full bg-red-500" />
-            <span className="text-sm font-medium text-red-400">Without Engram</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
+            <span className="text-sm font-medium text-white/30">Without Engram</span>
           </div>
           <div className="space-y-3 font-mono text-xs">
             <div className="p-3 rounded-lg bg-black/40 border border-white/5">
-              <p className="text-white/40">Claude: "I don't have access to your codebase"</p>
+              <p className="text-white/30 line-through decoration-white/10">"I don't have access to your codebase"</p>
             </div>
             <div className="p-3 rounded-lg bg-black/40 border border-white/5">
-              <p className="text-white/40">Cursor: "Context limit exceeded"</p>
+              <p className="text-white/30 line-through decoration-white/10">"Context limit exceeded"</p>
             </div>
             <div className="p-3 rounded-lg bg-black/40 border border-white/5">
-              <p className="text-white/40">You: *re-explains architecture for the 10th time*</p>
+              <p className="text-white/30 italic">*re-explains architecture for the 10th time*</p>
             </div>
           </div>
         </div>
@@ -403,23 +402,23 @@ const ComparisonBlock: FC = () => {
         initial={{ opacity: 0, x: 30 }}
         animate={isInView ? { opacity: 1, x: 0 } : {}}
         transition={{ duration: 0.6, delay: 0.2 }}
-        className="relative rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.02] p-6 overflow-hidden"
+        className="relative rounded-2xl border border-white/10 bg-white/[0.02] p-6 overflow-hidden"
       >
-        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl" />
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-3xl" />
         <div className="relative">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-sm font-medium text-emerald-400">With Engram</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-white" />
+            <span className="text-sm font-medium text-white/70">With Engram</span>
           </div>
           <div className="space-y-3 font-mono text-xs">
-            <div className="p-3 rounded-lg bg-black/40 border border-emerald-500/10">
-              <p className="text-emerald-400/80">"Based on your auth middleware at line 47..."</p>
+            <div className="p-3 rounded-lg bg-black/40 border border-white/10">
+              <p className="text-white/70">"Based on your auth middleware at line 47..."</p>
             </div>
-            <div className="p-3 rounded-lg bg-black/40 border border-emerald-500/10">
-              <p className="text-emerald-400/80">"You updated this 3 days ago in commit a3f2d..."</p>
+            <div className="p-3 rounded-lg bg-black/40 border border-white/10">
+              <p className="text-white/70">"You updated this 3 days ago in commit a3f2d..."</p>
             </div>
-            <div className="p-3 rounded-lg bg-black/40 border border-emerald-500/10">
-              <p className="text-emerald-400/80">"Here's how it connects to your login flow..."</p>
+            <div className="p-3 rounded-lg bg-black/40 border border-white/10">
+              <p className="text-white/70">"Here's how it connects to your login flow..."</p>
             </div>
           </div>
         </div>
@@ -650,8 +649,8 @@ const ProblemSection: FC = () => {
           transition={{ duration: 0.8 }}
           className="mb-16"
         >
-          <span className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-red-400/60 mb-6">
-            <span className="w-8 h-px bg-red-400/40" />
+          <span className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-white/30 mb-6">
+            <span className="w-8 h-px bg-white/20" />
             The Problem
           </span>
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.05]">
@@ -716,22 +715,22 @@ const FeaturesSection: FC = () => {
               transition={{ duration: 0.6 }}
             >
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
-                <span className="text-xs text-cyan-400/80 font-medium uppercase tracking-[0.15em]">Semantic Search</span>
+                <span className="text-xs text-white/40 font-medium uppercase tracking-[0.15em]">Semantic Search</span>
               </div>
               <h3 className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight leading-[1.1]">
-                Ask in <em className="italic font-light text-cyan-300/80">plain English.</em>
+                Ask in <em className="italic font-light text-white/80">plain English.</em>
                 <br />
                 <span className="text-white/30">Get precise results.</span>
               </h3>
               <p className="mt-6 text-white/40 leading-relaxed text-lg">
                 No more <code className="text-xs bg-white/5 px-2 py-1 rounded text-white/60">grep</code> gymnastics.
                 Ask <em className="not-italic text-white/60">"where do we handle auth errors"</em> and get exactly what you need—
-                <span className="text-cyan-400/60">with relevance scores.</span>
+                <span className="text-white/60">with relevance scores.</span>
               </p>
             </motion.div>
 
@@ -765,21 +764,21 @@ const FeaturesSection: FC = () => {
               className="lg:order-2"
             >
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <span className="text-xs text-violet-400/80 font-medium uppercase tracking-[0.15em]">Git-Aware Context</span>
+                <span className="text-xs text-white/40 font-medium uppercase tracking-[0.15em]">Git-Aware Context</span>
               </div>
               <h3 className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight leading-[1.1]">
-                Knows <em className="italic font-light text-violet-300/80">what changed.</em>
+                Knows <em className="italic font-light text-white/80">what changed.</em>
                 <br />
                 <span className="text-white/30">And when.</span>
               </h3>
               <p className="mt-6 text-white/40 leading-relaxed text-lg">
                 Engram reads your <span className="text-white/60">git history</span>. Recent changes rank higher.
-                Your AI knows what you touched <em className="not-italic text-violet-400/60">yesterday</em>, not just what exists.
+                Your AI knows what you touched <em className="not-italic text-white/70">yesterday</em>, not just what exists.
               </p>
             </motion.div>
 
@@ -816,21 +815,21 @@ const FeaturesSection: FC = () => {
               transition={{ duration: 0.6 }}
             >
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                   </svg>
                 </div>
-                <span className="text-xs text-emerald-400/80 font-medium uppercase tracking-[0.15em]">100% Local</span>
+                <span className="text-xs text-white/40 font-medium uppercase tracking-[0.15em]">100% Local</span>
               </div>
               <h3 className="text-3xl md:text-4xl lg:text-5xl font-semibold tracking-tight leading-[1.1]">
-                Your code <em className="italic font-light text-emerald-300/80">stays yours.</em>
+                Your code <em className="italic font-light text-white/80">stays yours.</em>
                 <br />
                 <span className="text-white/30">Always.</span>
               </h3>
               <p className="mt-6 text-white/40 leading-relaxed text-lg">
                 <span className="text-white/60">No cloud uploads.</span> No API calls with your source code.
-                Everything runs on <em className="not-italic text-emerald-400/60">your machine</em>. Your proprietary code never leaves.
+                Everything runs on <em className="not-italic text-white/70">your machine</em>. Your proprietary code never leaves.
               </p>
               <div className="mt-8 flex flex-wrap gap-2">
                 {['No cloud', 'No uploads', 'No tracking', 'Open source'].map((tag, i) => (
@@ -840,7 +839,7 @@ const FeaturesSection: FC = () => {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: 0.3 + i * 0.1 }}
-                    className="px-4 py-2 text-xs font-medium text-emerald-400/70 bg-emerald-500/5 rounded-full border border-emerald-500/20 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-colors cursor-default"
+                    className="px-4 py-2 text-xs font-medium text-white/50 bg-white/[0.02] rounded-full border border-white/10 hover:bg-white/[0.05] hover:border-white/20 transition-colors cursor-default"
                   >
                     {tag}
                   </motion.span>
@@ -855,10 +854,10 @@ const FeaturesSection: FC = () => {
               transition={{ duration: 0.6 }}
               className="relative"
             >
-              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.02] p-8">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8">
                 <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-                    <svg className="w-8 h-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                  <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
                     </svg>
                   </div>
@@ -875,7 +874,7 @@ const FeaturesSection: FC = () => {
                   ].map((item) => (
                     <div key={item.label} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
                       <span className="text-sm text-white/40">{item.label}</span>
-                      <span className="text-sm text-emerald-400 font-mono">{item.value}</span>
+                      <span className="text-sm text-white/70 font-mono">{item.value}</span>
                     </div>
                   ))}
                 </div>
@@ -944,9 +943,9 @@ const HowItWorks: FC = () => {
                   <h3 className="text-xl font-semibold mb-1">{item.title}</h3>
                   <p className="text-sm text-white/30 mb-6">{item.desc}</p>
                   <div className="p-4 rounded-xl bg-black/60 border border-white/5 font-mono text-sm">
-                    <span className="text-violet-400">❯</span>{" "}
-                    <span className="text-white/50">engram</span>{" "}
-                    <span className="text-cyan-400">{item.highlight}</span>
+                    <span className="text-white/40">❯</span>{" "}
+                    <span className="text-white/40">engram</span>{" "}
+                    <span className="text-white">{item.highlight}</span>
                     <span className="text-white/30">{item.cmd.replace(`engram ${item.highlight}`, '')}</span>
                   </div>
                 </div>
