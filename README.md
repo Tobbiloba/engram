@@ -1,3 +1,5 @@
+<!-- mcp-name: io.github.tobbiloba/engram -->
+
 # Engram
 
 **Local, persistent memory for AI development workflows.**

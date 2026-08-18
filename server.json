@@ -1,0 +1,9 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.tobbiloba/engram",
+  "title": "Engram",
+  "description": "Local codebase memory for MCP clients: indexes your repo into a FAISS vector store and serves semantic retrieval. 80% on LoCoMo.",
+  "version": "0.2.0",
+  "repository": { "url": "https://github.com/Tobbiloba/engram", "source": "github" },
+  "packages": [{ "registryType": "pypi", "identifier": "engram-dev", "version": "0.2.0", "transport": { "type": "stdio" } }]
+}
