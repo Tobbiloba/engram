@@ -218,3 +218,9 @@ MIT — Use freely, modify freely, share freely.
 ---
 
 **Built for developers who are tired of re-explaining their codebase.**
+
+---
+
+## Author
+
+Built by [Tobiloba Salau](https://www.tobbie.dev), a full-stack engineer specialising in payments and AI systems. Read the [engram case notes](https://www.tobbie.dev/projects/engram) or [hire me](https://www.tobbie.dev/services) for AI/RAG work.
