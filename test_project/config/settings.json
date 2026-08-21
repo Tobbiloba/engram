@@ -1,0 +1,27 @@
+{
+    "app": {
+        "name": "Test Application",
+        "version": "1.0.0",
+        "debug": true
+    },
+    "server": {
+        "host": "localhost",
+        "port": 3000,
+        "workers": 4
+    },
+    "database": {
+        "path": "./data/app.db",
+        "pool_size": 5,
+        "timeout": 30
+    },
+    "auth": {
+        "secret_key": "your-secret-key-here",
+        "token_expiry_hours": 24,
+        "max_login_attempts": 5
+    },
+    "logging": {
+        "level": "INFO",
+        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        "file": "./logs/app.log"
+    }
+}

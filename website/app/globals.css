@@ -265,9 +265,10 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
-/* Italic styling - elegant */
+/* Italic styling - cursive */
 em, .italic {
-  font-style: italic;
+  font-family: var(--font-cursive), cursive;
+  font-style: normal;
 }
 
 /* Emphasized text */

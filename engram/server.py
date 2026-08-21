@@ -213,6 +213,40 @@ def query_memory(query: str) -> str:
     return "\n\n---\n\n".join(output_parts)
 
 
+def format_temporal_results(results) -> str:
+    """Format TemporalResult objects into readable text."""
+    if not results:
+        return "No results found."
+
+    output_parts = []
+    for i, r in enumerate(results, 1):
+        # Build header with recency indicator
+        recency = " (RECENTLY CHANGED)" if r.is_recently_changed else ""
+        header = f"[Result {i}]{recency}"
+
+        # Source and modification info
+        source_line = f"Source: {r.source_file}"
+        if r.last_modified:
+            mod_time = r.last_modified.strftime("%Y-%m-%d %H:%M")
+            source_line += f" (modified: {mod_time})"
+
+        # Commit context if available
+        commit_info = ""
+        if r.recent_commits:
+            commit_lines = []
+            for c in r.recent_commits[:2]:  # Show up to 2 recent commits
+                if hasattr(c, 'message') and hasattr(c, 'date'):
+                    commit_lines.append(f"  - {c.message[:60]} ({c.date})")
+            if commit_lines:
+                commit_info = "\nRecent commits:\n" + "\n".join(commit_lines)
+
+        # Combine all parts
+        result_text = f"{header}\n{source_line}{commit_info}\n\n{r.content}"
+        output_parts.append(result_text)
+
+    return "\n\n---\n\n".join(output_parts)
+
+
 @mcp.tool()
 def query_recent(query: str, days: int = 7) -> str:
     """
